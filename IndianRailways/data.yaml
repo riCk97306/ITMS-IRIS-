@@ -1,0 +1,13 @@
+train: D:\IndianRailways\dataset\images\train
+val: D:\IndianRailways\dataset\images\valid
+test: D:\IndianRailways\dataset\images\test
+
+nc: 5
+names: ['Fastner_Present', 'Fastner_Defect', 'Perfect_Fishplate', 'Missing_Bolt', 'other Fastner_Present']
+
+roboflow:
+  workspace: sleeperstest
+  project: fastener-defect-recognition
+  version: 8
+  license: Private
+  url: https://universe.roboflow.com/sleeperstest/fastener-defect-recognition/dataset/8

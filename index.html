@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIDAR Deflection</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #00E5FF;
+            font-family: sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+            letter-spacing: 2px;
+        }
+
+        .dashboard {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 4px solid #333;
+            background: radial-gradient(circle, #1e1e1e 0%, #121212 70%);
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.1);
+        }
+
+        .arrow-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .arrow {
+            width: 12px;
+            height: 130px;
+            background: linear-gradient(to top, #00E5FF, transparent);
+            position: absolute;
+            bottom: 50%;
+            transform-origin: bottom center;
+            border-radius: 6px;
+            box-shadow: 0 0 15px #00E5FF;
+        }
+
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            height: 24px;
+            background: #fff;
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 0 10px white;
+        }
+
+        .value-display {
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .deflection {
+            font-size: 5rem;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .label {
+            font-size: 1.2rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00E676;
+            padding: 8px 24px;
+            border-radius: 30px;
+            background: rgba(0, 230, 118, 0.1);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+        }
+
+        .status.warning {
+            color: #FF5252;
+            background: rgba(255, 82, 82, 0.1);
+            border-color: rgba(255, 82, 82, 0.2);
+        }
+
+        .terminal-log {
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            color: #aaaaaa;
+            font-size: 1rem;
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 5px;
+            min-width: 300px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Rail Deflection</h1>
+    <div class="dashboard">
+        <div class="arrow-container" id="arrowBase">
+            <div class="arrow"></div>
+        </div>
+        <div class="center-dot"></div>
+    </div>
+    <div class="value-display">
+        <div class="deflection" id="deflectionVal">--</div>
+        <div class="label">Deflection</div>
+    </div>
+    <div class="status" id="statusVal">Waiting...</div>
+    <div class="terminal-log" id="logVal">Waiting for data...</div>
+    <script>
+        const dEl = document.getElementById('deflectionVal');
+        const sEl = document.getElementById('statusVal');
+        const lEl = document.getElementById('logVal');
+        const aEl = document.getElementById('arrowBase');
+
+        setInterval(() => {
+            fetch('/api/data').then(r => r.json()).then(d => {
+                if (d.gap_detected) {
+                    dEl.innerText = (d.deflection > 0 ? "+" : "") + d.deflection + "\u00B0";
+                    dEl.style.color = "#FF5252";
+                    sEl.innerText = "GAP DETECTED";
+                    sEl.className = "status warning";
+                    aEl.style.transform = `rotate(${d.deflection * 4}deg)`;
+                } else {
+                    dEl.innerText = "--";
+                    dEl.style.color = "#00E5FF";
+                    sEl.innerText = "STATUS: CLEAR";
+                    sEl.className = "status";
+                    aEl.style.transform = `rotate(0deg)`;
+                }
+
+                // Update terminal message exactly as seen in python console
+                if (d.terminal_msg) {
+                    lEl.innerText = d.terminal_msg;
+                } else {
+                    lEl.innerText = "No Event";
+                }
+
+            }).catch(e => { });
+        }, 50);
+    </script>
+</body>
+
+</html>

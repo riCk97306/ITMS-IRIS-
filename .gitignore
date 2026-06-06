@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large datasets
+IndianRailways/dataset/
+IndianRailways/new/
+IndianRailways/script_model/railway_yolo11/
+IndianRailways/script_model/runs_infer/
+
+# Model checkpoints and weights (large files)
+*.pth
+Depth-Anything-V2/checkpoints/
+
+# Large videos and recordings
+*.mp4
+*.webm
+*.avi
+*.mov
+lidar_recording.json
+
+# Local snapshots and captures
+snapshots/
+captures/
+deflection_log.json
+
+# Renamed nested git directory
+temp_git/
+**/temp_git/
+
+# Generated frame outputs
+**/depth_frames/
+**/frames/
+**/results/
+
+

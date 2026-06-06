@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRIS Rail Monitor</title>
+    <!-- LEAFLET CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- LEAFLET JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        :root {
+            /* Indian Flag Theme Palette */
+            --saffron: #FF9933;
+            --india-white: #FFFFFF;
+            --india-green: #138808;
+            --chakra-blue: #06038D;
+            /* Navy Blue */
+
+            /* Gradient Background */
+            --bg-dark: linear-gradient(135deg, var(--saffron) 0%, var(--india-white) 50%, var(--india-green) 100%);
+            --panel-bg: rgba(20, 20, 20, 0.90);
+            /* Slightly darker glass */
+
+            /* Mapped Accents */
+            --accent-cyan: var(--chakra-blue);
+            /* Map Blue to Chakra */
+            --accent-green: var(--india-green);
+            /* Map Green to Flag Green */
+            --accent-red: #FF5252;
+            /* Keep Red for alerts */
+            --accent-yellow: var(--saffron);
+            /* Map Yellow to Saffron */
+
+            --text-main: #ffffff;
+            --text-dim: #dddddd;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-dark);
+            background-size: cover;
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid;
+            border-image: linear-gradient(to right, var(--saffron), var(--india-white), var(--india-green)) 1;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--saffron);
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(255, 153, 51, 0.3);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .tab-btn:hover {
+            color: white;
+        }
+
+        .tab-btn.active {
+            color: var(--saffron);
+            border-bottom: 2px solid var(--saffron);
+        }
+
+        .live-tag {
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* --- TABS --- */
+        .tab-content {
+            display: none;
+            flex: 1;
+            height: calc(100vh - 60px);
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* --- DASHBOARD VIEW (Original) --- */
+        #tab-dashboard {
+            width: 100%;
+        }
+
+        .vision-panel {
+            flex: 2;
+            position: relative;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .vision-panel img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .vision-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .overlay-card {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .lidar-panel {
+            flex: 1;
+            min-width: 400px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            background: radial-gradient(circle, #2a2a2a 0%, var(--panel-bg) 70%);
+            margin-top: 20px;
+            box-shadow: 0 0 30px rgba(255, 153, 51, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .arrow {
+            width: 8px;
+            height: 120px;
+            background: linear-gradient(to top, var(--saffron), transparent);
+            position: absolute;
+            bottom: 50%;
+            transform-origin: bottom center;
+            border-radius: 4px;
+            box-shadow: 0 0 15px var(--saffron);
+            transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .center-dot {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 10;
+            box-shadow: 0 0 10px white;
+        }
+
+        .lidar-value-group {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .big-value {
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--saffron);
+            text-shadow: 0 0 20px rgba(255, 153, 51, 0.2);
+            line-height: 1;
+        }
+
+        .sub-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        .status-box {
+            margin-top: 30px;
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-weight: bold;
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+
+        .status-box.warn {
+            background: rgba(255, 82, 82, 0.1);
+            color: var(--accent-red);
+            border-color: rgba(255, 82, 82, 0.3);
+        }
+
+        .terminal-log {
+            margin-top: auto;
+            width: 100%;
+            background: #111;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #aaa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 60px;
+        }
+
+        /* --- SENSORS VIEW (New) --- */
+        #tab-sensors {
+            background: transparent;
+            padding: 20px;
+            /* Change to row for split view */
+            flex-direction: row;
+            gap: 20px;
+            overflow: hidden;
+            /* Prevent scroll if possible, or use auto */
+        }
+
+        .sensors-left {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sensors-right {
+            flex: 1;
+            background: black;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sensors-right img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .sensor-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .sensor-card h2 {
+            margin: 0;
+            color: var(--text-dim);
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+
+        .sensor-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            margin: 15px 0;
+        }
+
+        .sensor-unit {
+            font-size: 1rem;
+            color: var(--text-dim);
+            margin-left: 5px;
+        }
+
+        .mag-values {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .mag-val {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mag-val span {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .mag-val div {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent-yellow);
+        }
+
+        .gps-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 10px;
+        }
+
+        .gps-item {
+            text-align: left;
+        }
+
+        .gps-item div:first-child {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .gps-item div:last-child {
+            font-size: 1.1rem;
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
+        .raw-log-container {
+            flex: 1;
+            background: black;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            color: #00E676;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        .log-title {
+            color: #888;
+            font-family: sans-serif;
+            margin-bottom: 10px;
+            display: block;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* --- MAGNETOMETER VIZ --- */
+        /* --- MAGNETOMETER VIZ --- */
+        .mag-card-small {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            /* Standard Grid Item */
+        }
+
+        .mag-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .mag-bars {
+            display: flex;
+            gap: 20px;
+            height: 120px;
+            align-items: flex-end;
+            margin-bottom: 15px;
+            margin-top: 10px;
+        }
+
+        .mag-bar-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 40px;
+        }
+
+        .bar-track {
+            width: 12px;
+            height: 70px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .bar-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            /* Start at center */
+            transition: height 0.1s linear, background 0.2s;
+            border-radius: 10px;
+        }
+
+        .mag-label {
+            font-size: 0.8rem;
+            color: #888;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .mag-val-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: 'Consolas', monospace;
+        }
+
+        .mag-chart-container {
+            width: 100%;
+            height: 60px;
+            background: #111;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #gpsMap {
+            width: 100%;
+            height: 180px;
+            /* Adjust height as needed */
+            border-radius: 8px;
+            margin-top: 10px;
+            z-index: 1;
+        }
+
+        /* Custom Marker Fix */
+        .leaflet-pane {
+            z-index: 1 !important;
+        }
+
+        .leaflet-top,
+        .leaflet-bottom {
+            z-index: 2 !important;
+        }
+
+        /* NOTIFICATION TOAST */
+        .notification-toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+            border-left: 5px solid #fff;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div style="display:flex; align-items:center; gap:30px;">
+            <h1>IRIS Rail Monitor</h1>
+            <div class="header-controls">
+                <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
+                <button class="tab-btn" onclick="showTab('sensors')">Sensor Data</button>
+                <button class="tab-btn" onclick="showTab('mmd')">MMD SOD</button>
+                <button class="tab-btn" onclick="showTab('lidar')">LiDAR Control</button>
+                <button class="tab-btn" onclick="showTab('component')">Component Check</button>
+
+                <!-- EXPORT DROPDOWN -->
+                <div style="position: relative; display: inline-block;">
+                    <button class="tab-btn" onclick="toggleExportMenu()"
+                        style="color: var(--accent-yellow); border-color: var(--accent-yellow);">
+                        Export Data &#9662;
+                    </button>
+                    <div id="exportMenu"
+                        style="display: none; position: absolute; top: 100%; right: 0; background: #2a2a2a; min-width: 160px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); z-index: 200; border: 1px solid #444; border-radius: 4px;">
+                        <a href="/api/export/excel" target="_blank"
+                            style="color: #fff; padding: 12px 16px; text-decoration: none; display: block; transition: background 0.2s;"
+                            onmouseover="this.style.background='#444'"
+                            onmouseout="this.style.background='transparent'">Export Excel (CSV)</a>
+                        <a href="/api/export/html" target="_blank"
+                            style="color: #fff; padding: 12px 16px; text-decoration: none; display: block; border-top: 1px solid #333; transition: background 0.2s;"
+                            onmouseover="this.style.background='#444'"
+                            onmouseout="this.style.background='transparent'">Export Report (HTML)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="live-tag">
+            <div class="live-dot"></div> LIVE SYSTEM
+        </div>
+    </header>
+
+    <!-- NOTIFICATION CONTAINER -->
+    <div id="toast" class="notification-toast">
+        <h3 style="margin:0; font-size:1.1rem;">WARNING ALERT</h3>
+        <p id="toastMsg" style="margin:5px 0 0 0;">Defect Detected</p>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="tab-content active main-layout">
+        <!-- VIDEO SECTION -->
+        <div class="vision-panel">
+            <img src="/stream" alt="Camera Feed" id="camFeed"
+                onerror="this.style.display='none'; setTimeout(() => { this.src='/stream?t=' + Date.now(); this.style.display='block'; }, 1000);">
+            <div class="vision-overlay">
+                <div class="overlay-card">
+                    <div class="sub-label">Rail Gauge</div>
+                    <div style="font-size: 2.2rem; font-weight: bold; color: var(--saffron);" id="gaugeVal">--</div>
+                    <div style="font-size: 0.8rem; color: #666;">METERS</div>
+                </div>
+                <div class="overlay-card">
+                    <div class="sub-label">Train Speed</div>
+                    <div style="font-size: 2.2rem; font-weight: bold; color: var(--india-green);" id="speedVal">0</div>
+                    <div style="font-size: 0.8rem; color: #666;">KMPH</div>
+                </div>
+                <div class="overlay-card">
+                    <div class="sub-label">Video Time</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #fff;" id="timeVal">--</div>
+                    <div style="font-size: 0.8rem; color: #666;">MINUTES</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIDAR SECTION -->
+        <div class="lidar-panel">
+            <div class="sub-label" style="margin-bottom: 20px; font-size: 1.1rem; color: white;">RAIL DEFLECTION</div>
+
+            <div class="gauge-container">
+                <div class="arrow" id="lidarArrow"></div>
+                <div class="center-dot"></div>
+            </div>
+
+            <div class="lidar-value-group">
+                <div class="big-value" id="deflectionVal">--</div>
+                <div class="sub-label">Deflection Angle</div>
+            </div>
+
+            <div class="status-box" id="lidarStatus">SYSTEM READY</div>
+
+            <div class="terminal-log" id="termLog">
+                Waiting for serial data...
+            </div>
+        </div>
+    </div>
+
+    <!-- SENSORS TAB -->
+    <div id="tab-sensors" class="tab-content">
+        <!-- LEFT COLUMN: SENSORS -->
+        <div class="sensors-left">
+            <div class="sensor-grid">
+                <!-- TEMPERATURE -->
+                <div class="sensor-card">
+                    <h2>Temperature</h2>
+                    <div class="sensor-value" style="color: #FF7043;" id="valTemp">--</div>
+                    <div class="sub-label">Celsius</div>
+                </div>
+
+                <!-- BAROMETER -->
+                <div class="sensor-card">
+                    <h2>Barometer</h2>
+                    <div class="sensor-value" style="color: #42A5F5;" id="valPress">--</div>
+                    <div class="sub-label">mmHg</div>
+                </div>
+
+                <!-- MAGNETOMETER (COMPACT VISUALIZER) -->
+                <div class="mag-card-small">
+                    <h2 style="font-size: 1rem; color: #888; text-transform: uppercase; margin:0;">Magnetometer</h2>
+                    <div class="mag-group">
+                        <div class="mag-bars">
+                            <!-- X AXIS -->
+                            <div class="mag-bar-col">
+                                <span class="mag-label">X</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" id="barX" style="background:#2979FF; height:50%;"></div>
+                                </div>
+                                <div class="mag-val-text" style="color:#2979FF;" id="valMagX">0.00</div>
+                            </div>
+
+                            <!-- Y AXIS -->
+                            <div class="mag-bar-col">
+                                <span class="mag-label">Y</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" id="barY" style="background:#00E676; height:50%;"></div>
+                                </div>
+                                <div class="mag-val-text" style="color:#00E676;" id="valMagY">0.00</div>
+                            </div>
+
+                            <!-- Z AXIS -->
+                            <div class="mag-bar-col">
+                                <span class="mag-label">Z</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" id="barZ" style="background:#FF1744; height:50%;"></div>
+                                </div>
+                                <div class="mag-val-text" style="color:#FF1744;" id="valMagZ">0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- REALTIME GRAPH -->
+                        <div class="mag-chart-container">
+                            <canvas id="magCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW: CYCLE COUNT -->
+                <div class="sensor-card">
+                    <h2>Cycle Count</h2>
+                    <div class="sensor-value" style="color: #AB47BC;" id="valCycle">0</div>
+                    <div class="sub-label">Rotations</div>
+                </div>
+
+                <!-- NEW: DISTANCE -->
+                <div class="sensor-card">
+                    <h2>Distance</h2>
+                    <div class="sensor-value" style="color: #FFCA28;" id="valDist">0.00</div>
+                    <div class="sub-label">KM</div>
+                </div>
+
+                <!-- GPS -->
+                <div class="sensor-card">
+                    <h2>GPS Location</h2>
+                    <div id="gpsMap"></div>
+
+                    <div class="gps-row" style="border:none; margin-top:10px;">
+                        <div class="gps-item">
+                            <div>LATITUDE</div>
+                            <div id="valLat">--</div>
+                        </div>
+                        <div class="gps-item" style="text-align:right;">
+                            <div>LONGITUDE</div>
+                            <div id="valLon">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAW LOG (Hidden) -->
+            <div class="raw-log-container" style="display:none;">
+                <span class="log-title">SENSOR DATA STREAM (COM13)</span>
+                <div id="sensorLogContent">Waiting for stream...</div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: CAMERA VIEW -->
+        <div class="sensors-right">
+            <img src="/stream_camview" alt="Secondary Camera" id="cam2Feed"
+                onerror="console.error('CamView stream error'); setTimeout(() => { this.src='/stream_camview?t=' + Date.now(); }, 2000);">
+
+            <div class="vision-overlay">
+                <div class="overlay-card">
+                    <div class="sub-label">IP CAMERA</div>
+                    <div style="font-size: 1.0rem; color: #fff;">LIVE FEED</div>
+                </div>
+            </div>
+
+            <!-- Controls Overlay - Bottom Center -->
+            <div
+                style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); 
+                        background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; display: flex; gap: 10px; align-items: center; border: 1px solid #444;">
+                <input type="text" id="camUrlInput" value="http://192.168.39.19:8080/video"
+                    style="background: #222; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; width: 200px; font-size: 0.8rem;">
+                <button onclick="updateCamUrl()"
+                    style="background: var(--accent-cyan); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: background 0.2s;"
+                    onmouseover="this.style.background='#0055ff'"
+                    onmouseout="this.style.background='var(--accent-cyan)'">
+                    SET URL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MMD SOD TAB (NEW) -->
+    <div id="tab-mmd" class="tab-content" style="flex-direction:row; padding:20px; gap:20px;">
+        <div style="flex:1; display:flex; flex-direction:column; gap:20px;">
+            <div
+                style="flex:1; background:black; border:1px solid #333; position:relative; border-radius:8px; overflow:hidden;">
+                <h3
+                    style="position:absolute; top:10px; left:10px; margin:0; color:var(--accent-cyan); background:rgba(0,0,0,0.7); padding:5px 10px; border-radius:4px; font-size:0.9rem;">
+                    ORIGINAL FEED</h3>
+                <img src="/stream_raw" alt="Raw Video Feed" style="width:100%; height:100%; object-fit:contain;"
+                    onerror="this.style.display='none'; setTimeout(() => { this.src='/stream_raw?t=' + Date.now(); this.style.display='block'; }, 1000);">
+            </div>
+        </div>
+        <div style="width:300px; display:flex; flex-direction:column; gap:20px;">
+            <div class="sensor-card">
+                <h2>Analysis Export</h2>
+                <div style="font-size:0.8rem; color:#888; margin-bottom:15px;">
+                    Download synchronized analysis reports including frame-by-frame deflection and GPS data.
+                </div>
+                <a href="/api/export/mmd_excel" target="_blank" class="status-box"
+                    style="width:100%; margin-top:10px; text-decoration:none; display:block; text-align:center; box-sizing:border-box;">
+                    Download Excel Report
+                </a>
+                <a href="/api/export/mmd_html" target="_blank" class="status-box warn"
+                    style="width:100%; margin-top:10px; text-decoration:none; display:block; text-align:center; box-sizing:border-box; border-color:white; color:white;">
+                    Download HTML Report
+                </a>
+            </div>
+
+            <!-- Info Card -->
+            <div class="sensor-card">
+                <h2>Video Info</h2>
+                <div style="width:100%; text-align:left; font-size:0.9rem; color:#aaa; margin-top:10px;">
+                    <div
+                        style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #333;">
+                        <span>Duration:</span> <span style="color:white;">19.2s</span>
+                    </div>
+                    <div
+                        style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #333;">
+                        <span>Resolution:</span> <span style="color:white;">1920x1080</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                        <span>Process:</span> <span style="color:var(--accent-cyan);">Depth-Anything-V2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPONENT DETECTION TAB (NEW) -->
+    <div id="tab-component" class="tab-content" style="flex-direction:row; padding:20px; gap:20px;">
+        <div
+            style="flex:1; background:black; border:1px solid #333; position:relative; border-radius:8px; overflow:hidden; display:flex; justify-content:center; align-items:center;">
+            <img src="/stream_component" style="height:100%; width:100%; object-fit:contain;"
+                onerror="this.src='/stream_component?t=' + Date.now()">
+            <div class="vision-overlay">
+                <div class="overlay-card">
+                    <div class="sub-label">Model Status</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: var(--accent-green);" id="compStatus">--
+                    </div>
+                </div>
+                <div class="overlay-card">
+                    <div class="sub-label">Total Events</div>
+                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--saffron);" id="compCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="width:350px; display:flex; flex-direction:column; gap:20px;">
+            <div class="sensor-card">
+                <h2>Latest Event</h2>
+                <div id="compLastEvent"
+                    style="width:100%; text-align:center; min-height:100px; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#aaa;">
+                    No events yet
+                </div>
+            </div>
+
+            <div class="sensor-card">
+                <h2>Export Detection Log</h2>
+                <a href="/api/component/export/excel" target="_blank" class="status-box"
+                    style="width:100%; margin-top:10px; display:block; text-align:center; text-decoration:none;">
+                    Export Excel (XLSX)
+                </a>
+                <a href="/api/component/export/html" target="_blank" class="status-box warn"
+                    style="width:100%; margin-top:10px; display:block; text-align:center; text-decoration:none; color:white; border-color:white;">
+                    Export Report (HTML)
+                </a>
+            </div>
+
+            <!-- INFERENCE IMAGES GALLERY -->
+            <div class="sensor-card" style="flex:1; overflow:hidden; min-height: 250px;">
+                <h2>Inference Gallery</h2>
+                <div id="compGallery"
+                    style="width:100%; height:100%; overflow-y:auto; overflow-x:hidden; display:grid; grid-template-columns: 1fr 1fr; gap:5px; padding-top:10px;">
+                    <!-- Images inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- LIDAR CONTROL TAB -->
+    <div id="tab-lidar" class="tab-content" style="flex-direction: row;">
+        <!-- SIDEBAR -->
+        <div
+            style="background: #1E1E1E; width: 300px; padding: 15px; display: flex; flex-direction: column; gap: 15px; border-right: 1px solid #333; overflow-y: auto;">
+            <div
+                style="font-size: 1.2rem; font-weight: bold; color: white; border-bottom: 2px solid #555; padding-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
+                <span>YDLIDAR</span>
+                <label
+                    style="font-size:0.8rem; cursor:pointer; color:#00E5FF; display:flex; align-items:center; gap:5px; background:#333; padding:2px 8px; border-radius:4px;">
+                    <input type="checkbox" id="chkCommandToggle" checked onchange="toggleMyLidarUI(this.checked)">
+                    CONTROLS
+                </label>
+            </div>
+            <div id="lidarControlsStack" style="display:flex; flex-direction:column; gap:15px;">
+
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="updateLidarSetting('motor', true)" class="status-box"
+                        style="flex: 1; border: none; cursor: pointer; color:#00E676; border:1px solid #00E676; background: rgba(0,230,118,0.1);">START</button>
+                    <button onclick="updateLidarSetting('motor', false)" class="status-box warn"
+                        style="flex: 1; border: none; cursor: pointer; color:#FF5252; border:1px solid #FF5252; background: rgba(255,82,82,0.1);">STOP</button>
+                </div>
+                <button onclick="updateLidarSetting('reset_distance', true)"
+                    style="background: #37474F; border: none; padding: 10px; font-weight: bold; color: white; cursor: pointer; border-radius: 4px;">RESET
+                    DISTANCE</button>
+
+                <div style="height: 1px; background: #333; margin: 5px 0;"></div>
+
+                <div style="font-size: 0.8rem; font-weight: bold; color: #888;">INSTANT EXPORT</div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.open('/api/lidar/export/excel?mode=snapshot', '_blank')"
+                        style="flex:1; background:#1B5E20; border:none; color:white; padding:12px; font-weight:bold; cursor:pointer; border-radius:4px;">EXCEL</button>
+                    <button onclick="window.open('/api/lidar/export/html?mode=snapshot', '_blank')"
+                        style="flex:1; background:#E65100; border:none; color:white; padding:12px; font-weight:bold; cursor:pointer; border-radius:4px;">HTML</button>
+                </div>
+
+                <div style="height: 1px; background: #333; margin: 5px 0;"></div>
+
+                <div style="font-size: 0.8rem; font-weight: bold; color: #888;">INTERACTION</div>
+                <button id="btnZoom" onclick="toggleZoomMode()"
+                    style="background: #37474F; border: none; padding: 10px; font-weight: bold; color: white; cursor: pointer; border-radius: 4px;">SELECT
+                    AREA (ZOOM)</button>
+                <button onclick="resetLidarView()"
+                    style="background: #37474F; border: none; padding: 10px; font-weight: bold; color: white; cursor: pointer; border-radius: 4px;">RESET
+                    VIEW</button>
+
+                <div style="height: 1px; background: #333; margin: 5px 0;"></div>
+
+                <!-- Sliders -->
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>Max Range (mm)</span> <span id="lbl-range"
+                            style="color: #00E5FF; font-weight: bold;">10000</span>
+                    </div>
+                    <input type="range" id="sl-range" min="500" max="20000" step="100" value="10000"
+                        oninput="lidarSlide('range', this.value)" style="width:100%;">
+                </div>
+
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>Point Size</span> <span id="lbl-point_size"
+                            style="color: #00E5FF; font-weight: bold;">2.0</span>
+                    </div>
+                    <input type="range" id="sl-point_size" min="0.5" max="8.0" step="0.5" value="2.0"
+                        oninput="lidarSlide('point_size', this.value)" style="width:100%;">
+                </div>
+
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>History (Trails)</span> <span id="lbl-history"
+                            style="color: #00E5FF; font-weight: bold;">25</span>
+                    </div>
+                    <input type="range" id="sl-history" min="10" max="100" step="1" value="25"
+                        oninput="lidarSlide('history', this.value)" style="width:100%;">
+                </div>
+
+                <div style="height: 1px; background: #333; margin: 5px 0;"></div>
+
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>Rotation (° )</span> <span id="lbl-rotation"
+                            style="color: #00E5FF; font-weight: bold;">0</span>
+                    </div>
+                    <input type="range" id="sl-rotation" min="-180" max="180" step="1" value="0"
+                        oninput="lidarSlide('rotation', this.value)" style="width:100%;">
+                </div>
+
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>Angle Min</span> <span id="lbl-angle_from"
+                            style="color: #00E5FF; font-weight: bold;">0</span>
+                    </div>
+                    <input type="range" id="sl-angle_from" min="0" max="359" step="1" value="0"
+                        oninput="lidarSlide('angle_from', this.value)" style="width:100%;">
+                </div>
+
+                <div class="slider-group">
+                    <div style="display:flex; justify-content:space-between; color:white; font-size:0.9rem;">
+                        <span>Angle Max</span> <span id="lbl-angle_to"
+                            style="color: #00E5FF; font-weight: bold;">359</span>
+                    </div>
+                    <input type="range" id="sl-angle_to" min="0" max="359" step="1" value="359"
+                        oninput="lidarSlide('angle_to', this.value)" style="width:100%;">
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <label style="color: white; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-labels" onchange="toggleLidarLabels(this.checked)"> Show Distance
+                        Labels
+                    </label>
+                </div>
+
+            </div>
+            <div class="status-box" id="lidarStatusBox" style="margin-top: auto; text-align: center;">SYSTEM READY</div>
+        </div>
+
+        <!-- MAIN AREA -->
+        <div style="flex: 1; display: flex; flex-direction: column; background: #121212;">
+            <!-- HUD -->
+            <!-- HUD -->
+            <div id="lidarHud"
+                style="height: 100px; display: flex; align-items: center; justify-content: center; background: #121212;">
+                <div class="overlay-card" style="margin: 0 10px; min-width: 120px;">
+                    <div class="sub-label">SPEED</div>
+                    <div style="font-size: 1.8rem; color: #00E5FF;" id="lid-speed">0.0</div>
+                    <div style="font-size: 0.8rem; color: #666;">KM/H</div>
+                </div>
+                <div class="overlay-card" style="margin: 0 10px; min-width: 120px;">
+                    <div class="sub-label">DISTANCE</div>
+                    <div style="font-size: 1.8rem; color: #E040FB;" id="lid-dist">0.00</div>
+                    <div style="font-size: 0.8rem; color: #666;">M</div>
+                </div>
+                <div class="overlay-card" style="margin: 0 10px; min-width: 120px;">
+                    <div class="sub-label">CYCLES</div>
+                    <div style="font-size: 1.8rem; color: #FFEA00;" id="lid-cycles">0</div>
+                    <div style="font-size: 0.8rem; color: #666;">#</div>
+                </div>
+                <div class="overlay-card" style="margin: 0 10px; min-width: 120px;">
+                    <div class="sub-label">DATA RATE</div>
+                    <div style="font-size: 1.8rem; color: white;" id="lid-sps">0</div>
+                    <div style="font-size: 0.8rem; color: #666;">SPS</div>
+                </div>
+            </div>
+
+            <!-- CANVAS CONTAINER -->
+            <div id="lidarContainer"
+                style="flex: 1; margin: 20px; border: 1px solid #333; background: black; position: relative; overflow: hidden;">
+                <canvas id="lidarCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR (DATA) -->
+        <div id="lidarRightPanel"
+            style="background: #1E1E1E; width: 250px; border-left: 1px solid #333; display:flex; flex-direction:column;">
+            <div
+                style="padding: 10px; font-weight: bold; color: white; border-bottom: 1px solid #333; background: #222;">
+                POINT DATA
+                <span style="font-size:0.7rem; color:#888; display:block;">Visible Range</span>
+            </div>
+            <div id="lidarPointList"
+                style="flex:1; overflow-y:auto; padding:5px; font-family: monospace; font-size: 0.85rem;">
+                <!-- Points go here -->
+                <div style="color:#666; text-align:center; margin-top:20px;">Waiting for data...</div>
+            </div>
+            <div style="padding:10px; border-top:1px solid #333; font-size:0.8rem; color:#666;">
+                Count: <span id="lidarVisCount" style="color:white;">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ELEMENTS ---
+        const els = {
+            // Dashboard
+            gauge: document.getElementById('gaugeVal'),
+            speed: document.getElementById('speedVal'), // NEW
+            time: document.getElementById('timeVal'),
+            deflection: document.getElementById('deflectionVal'),
+            status: document.getElementById('lidarStatus'),
+            arrow: document.getElementById('lidarArrow'),
+            log: document.getElementById('termLog'),
+            // Sensors
+            temp: document.getElementById('valTemp'),
+            press: document.getElementById('valPress'),
+            cycle: document.getElementById('valCycle'), // NEW
+            dist: document.getElementById('valDist'),   // NEW
+            lat: document.getElementById('valLat'),
+            lon: document.getElementById('valLon'),
+            sat: document.getElementById('valSat'),
+            // Mag Visuals
+            valMagX: document.getElementById('valMagX'),
+            valMagY: document.getElementById('valMagY'),
+            valMagZ: document.getElementById('valMagZ'),
+            barX: document.getElementById('barX'),
+            barY: document.getElementById('barY'),
+            barZ: document.getElementById('barZ'),
+            sensorLog: document.getElementById('sensorLogContent')
+        };
+
+        // --- CHART SETUP ---
+        const cvs = document.getElementById('magCanvas');
+        const ctx = cvs.getContext('2d');
+        let magHistory = [];
+        const MAX_POINTS = 100;
+
+        function resizeCanvas() {
+            cvs.width = cvs.offsetWidth;
+            cvs.height = cvs.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- MAP SETUP ---
+        let map = null;
+        let marker = null;
+        let mapInitialized = false;
+
+        function initMap() {
+            if (mapInitialized) return;
+            // Initialize with default or waiting...
+            // Use a dark theme tile provider (CartoDB Dark Matter)
+            try {
+                if (!document.getElementById('gpsMap')) return;
+
+                map = L.map('gpsMap', { zoomControl: false }).setView([9.528193, 76.822224], 15);
+
+                // Light Theme (OpenStreetMap Standard)
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
+
+                marker = L.marker([9.528193, 76.822224]).addTo(map);
+                mapInitialized = true;
+            } catch (e) {
+                console.error("Leaflet Init Error:", e);
+            }
+        }
+
+        function updateMagVisuals(x, y, z) {
+            // 1. Update Text
+            els.valMagX.innerText = x.toFixed(2);
+            els.valMagY.innerText = y.toFixed(2);
+            els.valMagZ.innerText = z.toFixed(2);
+
+            // 2. Update Bars (Assume Range +/- 2.0 Gauss for full deflection 0-100%)
+            // Center (0.0) is 50%. 
+            // Formula: 50 + (val / 2.0 * 50) => 50 + val*25
+            const calcH = (v) => Math.min(100, Math.max(0, 50 + (v * 25)));
+
+            els.barX.style.height = calcH(x) + "%";
+            els.barY.style.height = calcH(y) + "%";
+            els.barZ.style.height = calcH(z) + "%";
+
+            // 3. Chart
+            magHistory.push({ x, y, z });
+            if (magHistory.length > MAX_POINTS) magHistory.shift();
+
+            drawChart();
+        }
+
+        function drawChart() {
+            const w = cvs.width;
+            const h = cvs.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (magHistory.length < 2) return;
+
+            // Draw center line
+            ctx.beginPath();
+            ctx.strokeStyle = "#222";
+            ctx.moveTo(0, h / 2);
+            ctx.lineTo(w, h / 2);
+            ctx.stroke();
+
+            // Auto-scale or fixed? Let's use fixed +/- 2.0 for now to match bars
+            const minVal = -2.0;
+            const maxVal = 2.0;
+            const range = maxVal - minVal;
+
+            const getY = (val) => {
+                let norm = (val - minVal) / range;
+                norm = 1 - Math.max(0, Math.min(1, norm)); // Flip Y
+                return norm * h;
+            }
+
+            const step = w / (MAX_POINTS - 1);
+
+            // Helper to draw line
+            const drawLine = (key, color) => {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                magHistory.forEach((pt, i) => {
+                    const px = i * step;
+                    const py = getY(pt[key]);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                });
+                ctx.stroke();
+            };
+
+            drawLine('x', '#2979FF');
+            drawLine('y', '#00E676');
+            drawLine('z', '#FF1744');
+        }
+
+        // --- TABS ---
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('tab-' + tabName).classList.add('active');
+
+            // Update buttons smartly
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                if (btn.innerText.toLowerCase().includes(tabName.split('-')[0])) {
+                    btn.classList.add('active');
+                } else if (tabName === 'mmd' && btn.innerText.includes('MMD')) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Fix Map Render if switching to sensors
+            if (tabName === 'sensors' && map) {
+                setTimeout(() => map.invalidateSize(), 200);
+            }
+
+            // Fix Lidar Canvas size if switching to lidar
+            if (tabName === 'lidar') {
+                setTimeout(() => resizeLidarCanvas(), 50);
+            }
+
+            // Force Video Playback for MMD tab
+            if (tabName === 'mmd') {
+                const vids = document.getElementById('tab-mmd').querySelectorAll('video');
+                vids.forEach(v => {
+                    v.muted = true; // Strict autoplay policy compliance
+                    v.currentTime = 0; // Restart
+                    const playPromise = v.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => {
+                            // Autoplay started!
+                        }).catch(error => {
+                            console.error("Autoplay prevented:", error);
+                            v.muted = true;
+                            v.play();
+                        });
+                    }
+                });
+            }
+        }
+
+        // --- UPDATE LOOP ---
+        setInterval(() => {
+            fetch('/api/data').then(r => r.json()).then(d => {
+                // 1. Vision
+                if (d.vision.gauge_m > 0) {
+                    els.gauge.innerText = d.vision.gauge_m.toFixed(4);
+                    els.time.innerText = d.vision.timestamp.toFixed(4);
+                }
+
+                // 2. Lidar (Basic Dashboard View)
+                const l = d.lidar;
+                if (l.gap_detected) {
+                    els.deflection.innerText = (l.deflection > 0 ? "+" : "") + l.deflection + "\u00B0";
+                    els.deflection.style.color = "#FF5252";
+                    els.status.innerText = "DEFLECTION DETECTED";
+                    els.status.className = "status-box warn";
+                    els.arrow.style.transform = `rotate(${l.deflection * 4}deg)`;
+                    els.arrow.style.background = "linear-gradient(to top, #FF5252, transparent)";
+                } else {
+                    els.deflection.innerText = "--";
+                    els.deflection.style.color = "#FF9933";
+                    els.status.innerText = "TRACK CLEAR";
+                    els.status.className = "status-box";
+                    els.arrow.style.transform = `rotate(0deg)`;
+                    els.arrow.style.background = "linear-gradient(to top, #FF9933, transparent)";
+                }
+                if (l.terminal_msg) els.log.innerText = l.terminal_msg;
+
+                // 2b. Lidar Extended (Tab)
+                if (d.lidar_ext && document.getElementById('tab-lidar').classList.contains('active')) {
+                    const le = d.lidar_ext;
+                    const elSpeed = document.getElementById('lid-speed');
+                    if (elSpeed) {
+                        elSpeed.innerText = le.speed_kmph.toFixed(1);
+
+                        // Use Sensors Data for Distance/Cycles if available (User Request)
+                        if (d.sensors) {
+                            document.getElementById('lid-dist').innerText = (d.sensors.distance !== undefined) ? d.sensors.distance.toFixed(2) : "0.00";
+                            document.getElementById('lid-cycles').innerText = (d.sensors.cycle_count !== undefined) ? d.sensors.cycle_count : "0";
+                        } else {
+                            document.getElementById('lid-dist').innerText = le.total_dist.toFixed(2);
+                            document.getElementById('lid-cycles').innerText = le.cycles;
+                        }
+
+                        document.getElementById('lid-sps').innerText = le.sps;
+                        document.getElementById('lidarStatusBox').innerText = d.lidar.terminal_msg || "SYSTEM READY";
+
+                        if (le.scan_data) {
+                            lidarPoints = le.scan_data;
+                        }
+                    }
+                }
+
+                // Update Speed (Use sensor value or default to 0)
+                if (d.sensors && d.sensors.speed !== undefined) {
+                    els.speed.innerText = d.sensors.speed;
+                } else {
+                    els.speed.innerText = "0";
+                }
+
+                // 3. Sensors
+                if (d.sensors) {
+                    const s = d.sensors;
+                    els.temp.innerText = s.temp ? s.temp.toFixed(1) + "\u00B0" : "--";
+                    els.press.innerText = s.pressure ? (s.pressure / 1333.22).toFixed(1) : "--";
+                    els.cycle.innerText = (s.cycle_count !== undefined) ? s.cycle_count : "0";
+                    els.dist.innerText = (s.distance !== undefined) ? s.distance.toFixed(4) : "0.00";
+
+                    if (s.mag) {
+                        updateMagVisuals(s.mag.x, s.mag.y, s.mag.z);
+                    }
+
+                    els.lat.innerText = s.gps.lat.toFixed(6);
+                    els.lon.innerText = s.gps.lon.toFixed(6);
+
+                    if (!mapInitialized) initMap();
+                    if (map && marker && s.gps.lat !== 0) {
+                        const newLL = [s.gps.lat, s.gps.lon];
+                        marker.setLatLng(newLL);
+                        map.panTo(newLL);
+                    }
+
+                    if (s.raw_log && s.raw_log.length > 0) {
+                        els.sensorLog.innerHTML = s.raw_log.join('<br>');
+                        els.sensorLog.scrollTop = els.sensorLog.scrollHeight;
+                    }
+                }
+
+            }).catch(e => console.error(e));
+        }, 100);
+
+        // --- LIDAR JS ---
+        let lidarSettings = {
+            range: 10000, point_size: 2.0, history: 25,
+            rotation: 0, angle_from: 0, angle_to: 359
+        };
+        let showLidarLabels = false;
+        let isZoomMode = false;
+        let zoomStart = null;
+        let lidarCanvas = document.getElementById('lidarCanvas');
+        let lCtx = lidarCanvas.getContext('2d');
+        let lidarPoints = [];
+
+        function resizeLidarCanvas() {
+            // Handle Dims
+            const container = document.getElementById('lidarContainer');
+            if (container) {
+                lidarCanvas.width = container.clientWidth;
+                lidarCanvas.height = container.clientHeight;
+            }
+        }
+        window.addEventListener('resize', resizeLidarCanvas);
+
+        function lidarSlide(key, val) {
+            document.getElementById('lbl-' + key).innerText = Math.round(val);
+            lidarSettings[key] = parseFloat(val);
+            // Debounce or just send? For localhost, direct send is fine.
+            updateLidarSetting(key, parseFloat(val));
+        }
+
+        function updateLidarSetting(key, val, refreshUI = false) {
+            let payload = {};
+            payload[key] = val;
+            fetch('/api/lidar/update_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                if (d.status === 'ok') {
+                    // console.log("Settings Updated");
+                    if (refreshUI) { /* sync sliders if needed */ }
+                }
+            });
+        }
+
+        function toggleLidarLabels(checked) {
+            showLidarLabels = checked;
+        }
+
+        function toggleZoomMode() {
+            isZoomMode = !isZoomMode;
+            const btn = document.getElementById('btnZoom');
+            const root = document.getElementById('tab-lidar');
+
+            if (isZoomMode) {
+                btn.style.background = "#FFD740"; // C_SELECT
+                btn.style.color = "black";
+                btn.innerText = "DRAG TO SELECT";
+                lidarCanvas.style.cursor = "crosshair";
+            } else {
+                btn.style.background = "#37474F";
+                btn.style.color = "white";
+                btn.innerText = "SELECT AREA (ZOOM)";
+                lidarCanvas.style.cursor = "default";
+            }
+        }
+
+        function resetLidarView() {
+            lidarSettings.range = 10000;
+            lidarSettings.angle_from = 0;
+            lidarSettings.angle_to = 359;
+
+            // Sync UI
+            document.getElementById('sl-range').value = 10000;
+            document.getElementById('lbl-range').innerText = "10000";
+            document.getElementById('sl-angle_from').value = 0;
+            document.getElementById('lbl-angle_from').innerText = "0";
+            document.getElementById('sl-angle_to').value = 359;
+            document.getElementById('lbl-angle_to').innerText = "359";
+
+            updateLidarSetting('range', 10000); // Trigger update
+            // Send full reset
+            fetch('/api/lidar/update_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ range: 10000, angle_from: 0, angle_to: 359 })
+            });
+        }
+
+        function drawLidar() {
+            if (!document.getElementById('tab-lidar').classList.contains('active')) return;
+
+            // Re-read settings from UI state to be sure or use local copy
+            const W = lidarCanvas.width;
+            const H = lidarCanvas.height;
+            const CX = W / 2;
+            const CY = H / 2;
+            const MAX_R_MM = lidarSettings.range;
+
+            // Clear
+            lCtx.fillStyle = "black";
+            lCtx.fillRect(0, 0, W, H);
+
+            // Grid
+            lCtx.strokeStyle = "#333";
+            lCtx.lineWidth = 1;
+            lCtx.beginPath();
+            // Circles
+            for (let i = 1; i <= 4; i++) {
+                let rPx = (W < H ? W / 2 : H / 2) * (i / 4); // Screen radius
+                // Or map scale properly? 
+                // Matplotlib: 'r' var sets ylim.
+                // We should map MAX_R_MM to min(W,H)/2
+            }
+
+            const scale = Math.min(W, H) / 2 / MAX_R_MM; // px per mm
+
+            // Draw Range circles
+            lCtx.beginPath();
+            for (let r = MAX_R_MM / 4; r <= MAX_R_MM; r += MAX_R_MM / 4) {
+                lCtx.arc(CX, CY, r * scale, 0, Math.PI * 2);
+            }
+            lCtx.stroke();
+
+            // Draw Axis
+            lCtx.beginPath();
+            lCtx.moveTo(CX, 0); lCtx.lineTo(CX, H);
+            lCtx.moveTo(0, CY); lCtx.lineTo(W, CY);
+            lCtx.stroke();
+
+            // Draw Points
+            lCtx.fillStyle = "#00E5FF"; // C_ACCENT
+            const pSize = lidarSettings.point_size;
+
+            // Angles
+            const aMin = lidarSettings.angle_from;
+            const aMax = lidarSettings.angle_to;
+
+            const toRad = Math.PI / 180;
+
+            let visiblePoints = [];
+
+            // lidarPoints is updated by main loop
+            // format: [[angle_deg, dist_mm], ...]
+            for (let i = 0; i < lidarPoints.length; i++) {
+                const pt = lidarPoints[i];
+                const deg = pt[0]; // Already rotated in backend
+                const dist = pt[1];
+
+                // Visual Window Check
+                let visible = false;
+                if (aMin <= aMax) {
+                    if (deg >= aMin && deg <= aMax) visible = true;
+                } else {
+                    if (deg >= aMin || deg <= aMax) visible = true;
+                }
+
+                if (visible && dist <= MAX_R_MM) {
+                    // Coordinate: 0 is North (Up) in Matplotlib logic used in original.
+                    // Canvas Angle: deg - 90
+                    const rad = (deg - 90) * toRad;
+                    const rPx = dist * scale;
+
+                    const x = CX + rPx * Math.cos(rad);
+                    const y = CY + rPx * Math.sin(rad); // Y is down
+
+                    lCtx.beginPath();
+                    lCtx.arc(x, y, pSize, 0, Math.PI * 2);
+                    lCtx.fill();
+
+                    if (showLidarLabels && i % 50 === 0) {
+                        lCtx.fillStyle = "yellow";
+                        lCtx.font = "10px Arial";
+                        lCtx.fillText(Math.round(dist), x + 5, y);
+                        lCtx.fillStyle = "#00E5FF";
+                    }
+
+                    visiblePoints.push({ d: deg, r: dist });
+                }
+            }
+
+            // Update Panel Loop (Throttle 200ms)
+            const now = Date.now();
+            if (now - lastListUpdate > 200) {
+                updateLidarPanel(visiblePoints);
+                lastListUpdate = now;
+            }
+        }
+
+        // Add var
+        let lastListUpdate = 0;
+
+        function updateLidarPanel(points) {
+            const listEl = document.getElementById('lidarPointList');
+            if (!listEl) return;
+
+            // Limit to first 500
+            const limit = 500;
+            let html = "";
+            let count = 0;
+
+            points.forEach(p => {
+                if (count < limit) {
+                    html += `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding:2px 0;">
+                        <span style="color:#00E5FF;">${p.d.toFixed(1)}°</span>
+                        <span style="color:#E040FB;">${p.r.toFixed(0)}mm</span>
+                   </div>`;
+                }
+                count++;
+            });
+
+            if (count > limit) {
+                html += `<div style="color:#888; font-style:italic;">... +${count - limit} more</div>`;
+            }
+
+            listEl.innerHTML = html;
+            document.getElementById('lidarVisCount').innerText = count;
+        }
+
+        // Interaction Handlers (Zoom)
+        lidarCanvas.addEventListener('mousedown', e => {
+            if (!isZoomMode) return;
+            const rect = lidarCanvas.getBoundingClientRect();
+            zoomStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        });
+
+        lidarCanvas.addEventListener('mouseup', e => {
+            if (!isZoomMode || !zoomStart) return;
+            const rect = lidarCanvas.getBoundingClientRect();
+            const endX = e.clientX - rect.left;
+            const endY = e.clientY - rect.top;
+
+            // Calculate Polar coords for Start and End
+            const getPolar = (x, y) => {
+                const dx = x - lidarCanvas.width / 2;
+                const dy = y - lidarCanvas.height / 2;
+                const rPx = Math.sqrt(dx * dx + dy * dy);
+                let ang = Math.atan2(dy, dx) * 180 / Math.PI; // -180 to 180
+                // Map back to 0-360 where -90 is 0 (North)
+                // Canvas 0 (East) -> Lidar 90
+                // Canvas -90 (North) -> Lidar 0
+                // Canvas 90 (South) -> Lidar 180
+                // Lidar = Canvas + 90
+                let lidAng = ang + 90;
+                if (lidAng < 0) lidAng += 360;
+                if (lidAng >= 360) lidAng -= 360;
+
+                // Calc Dist MM
+                const scale = Math.min(lidarCanvas.width, lidarCanvas.height) / 2 / lidarSettings.range;
+                const rMM = rPx / scale;
+                return { a: lidAng, r: rMM };
+            };
+
+            const p1 = getPolar(zoomStart.x, zoomStart.y);
+            const p2 = getPolar(endX, endY);
+
+            // Logic from read_serial15.py on_release
+            const deg1 = p1.a;
+            const deg2 = p2.a;
+
+            let min_a = Math.min(deg1, deg2);
+            let max_a = Math.max(deg1, deg2);
+            if (Math.abs(max_a - min_a) > 180) {
+                const t = min_a; min_a = max_a; max_a = t; // swap
+            }
+
+            const new_max_r = Math.max(p1.r, p2.r);
+
+            // Apply
+            lidarSettings.angle_from = min_a;
+            lidarSettings.angle_to = max_a;
+            lidarSettings.range = new_max_r;
+
+            // Update UI
+            document.getElementById('sl-angle_from').value = min_a;
+            document.getElementById('lbl-angle_from').innerText = Math.round(min_a);
+            document.getElementById('sl-angle_to').value = max_a;
+            document.getElementById('lbl-angle_to').innerText = Math.round(max_a);
+            document.getElementById('sl-range').value = new_max_r;
+            document.getElementById('lbl-range').innerText = Math.round(new_max_r);
+
+            // Send
+            fetch('/api/lidar/update_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ angle_from: min_a, angle_to: max_a, range: new_max_r })
+            });
+
+            zoomStart = null;
+            toggleZoomMode();
+        });
+
+        requestAnimationFrame(function loop() {
+            drawLidar();
+            requestAnimationFrame(loop);
+        });
+
+        // Add Lidar data handling to existing fetch loop in updateDashboard
+        // Wait, I am overwriting the setInterval block with a new one that includes Lidar logic
+        // Need to be careful. The block I am replacing handles 'fetch(/api/data)'.
+
+
+
+        function toggleExportMenu() {
+            const m = document.getElementById('exportMenu');
+            m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+        }
+        // Close menu when clicking outside
+        window.onclick = function (e) {
+            // Check if click is on the button or inside the menu
+            if (!e.target.matches('.tab-btn') && !e.target.closest('#exportMenu')) {
+                const m = document.getElementById('exportMenu');
+                if (m && m.style.display === 'block') {
+                    m.style.display = 'none';
+                }
+            }
+        }
+        // Initialize: Sync settings from server
+        fetch('/api/data').then(r => r.json()).then(d => {
+            if (d.lidar_ext && d.lidar_ext.settings) {
+                const s = d.lidar_ext.settings;
+                Object.keys(s).forEach(k => {
+                    lidarSettings[k] = s[k];
+                    // Update Sliders and Labels
+                    const elSl = document.getElementById('sl-' + k);
+                    const elLbl = document.getElementById('lbl-' + k);
+                    if (elSl && elLbl) {
+                        elSl.value = s[k];
+                        elLbl.innerText = Math.round(s[k]);
+                    }
+                });
+            }
+        }).catch(e => console.log("Settings sync failed", e));
+
+
+        function toggleMyLidarUI(checked) {
+            const disp = checked ? 'flex' : 'none';
+            const cStack = document.getElementById('lidarControlsStack');
+            if (cStack) cStack.style.display = disp;
+
+            const hud = document.getElementById('lidarHud');
+            if (hud) hud.style.display = disp;
+
+            // Resize canvas after layout change
+            setTimeout(resizeLidarCanvas, 50);
+        }
+
+        function updateCamUrl() {
+            const url = document.getElementById('camUrlInput').value;
+            if (!url) return;
+
+            fetch('/api/update_cam_url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'ok') {
+                        // Force refresh image after a delay
+                        setTimeout(() => {
+                            const img = document.getElementById('cam2Feed');
+                            img.src = '/stream_camview?t=' + Date.now();
+                        }, 1000);
+                    } else {
+                        alert('Error: ' + d.message);
+                    }
+                })
+                .catch(e => alert('Request failed: ' + e));
+        }
+        // NOTIFICATION LOGIC
+        let lastComponentEventTime = 0;
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+
+        function showNotification(title, msg) {
+            toast.querySelector('h3').innerText = title;
+            toastMsg.innerText = msg;
+            toast.style.display = 'block';
+
+            // Play alert sound if possible? (Browser policy might block)
+            // setTimeout(() => toast.style.display = 'none', 5000);
+        }
+
+        // Enhance existing fetch loop
+        // We need to inject logic into the interval. 
+        // Since I cannot easily edit inside the interval block without replacing it entirely, 
+        // I will add a secondary interval for component checks to avoid messing up the big block.
+        // It's safe to have two polling loops.
+
+        setInterval(() => {
+            fetch('/api/data').then(r => r.json()).then(d => {
+                // Component Data
+                if (d.component) {
+                    const c = d.component;
+                    const cStatus = document.getElementById('compStatus');
+                    const cCount = document.getElementById('compCount');
+
+                    if (cStatus) cStatus.innerText = c.status;
+                    if (cCount) cCount.innerText = c.total_events;
+
+                    // Event Check
+                    if (c.last_event) {
+                        const evtTime = new Date(c.last_event.timestamp).getTime();
+                        if (evtTime > lastComponentEventTime) {
+                            lastComponentEventTime = evtTime;
+
+                            // Show Notification
+                            // showNotification("ALERT: " + c.last_event.type, c.last_event.description);
+
+                            // Update Last Event UI
+                            const el = document.getElementById('compLastEvent');
+                            if (el) {
+                                el.innerHTML = `
+                                    <div style="color:var(--accent-red); font-weight:bold; font-size:1.2rem;">${c.last_event.type}</div>
+                                    <div style="font-size:0.8rem; margin:5px 0;">${c.last_event.timestamp}</div>
+                                    <div style="font-size:0.8rem;">${c.last_event.description}</div>
+                                `;
+                            }
+                        }
+                    }
+                }
+
+                // Fetch Gallery if on component tab
+                if (currentTab === 'component') {
+                    fetchInferenceImages();
+                }
+            }).catch(e => { });
+        }, 500);
+
+    </script>
+</body>
+
+</html>
